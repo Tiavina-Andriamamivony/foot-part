@@ -3,9 +3,11 @@ package org.prog3.foot.models;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+import java.io.Serializable;
+
 @EqualsAndHashCode(callSuper=true)
 @Data
-public class Season extends CreateSeason {
+public class Season extends CreateSeason implements Serializable {
     private SeasonStatus status;
     private String id;
 

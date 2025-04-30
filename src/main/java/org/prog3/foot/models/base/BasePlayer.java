@@ -7,7 +7,7 @@ import org.prog3.foot.models.Position;
 /**
  * Il désigne le player de base sans le club notemment
  *
- * Il sera utiliser dans PUT/players
+ * Il sera utiliser dans PUT/players, GET/club/{id}/players
  */
 public class BasePlayer {
     private String id;
@@ -16,5 +16,4 @@ public class BasePlayer {
     private String nationality;
     private Position position;
     private Integer number;
-
 }

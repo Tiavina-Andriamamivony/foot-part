@@ -2,7 +2,6 @@ package org.prog3.foot.models;
 
 import lombok.Data;
 
-import static org.prog3.foot.models.SeasonStatus.NOT_STARTED;
 
 @Data
 public class Season {

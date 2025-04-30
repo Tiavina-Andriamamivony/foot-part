@@ -11,7 +11,7 @@ import lombok.Data;
  */
 public class Player {
     private Club club;
-    private Position position;
+    private PlayerPosition playerPosition;
     private String nationality;
     private Integer age;
     private String id;

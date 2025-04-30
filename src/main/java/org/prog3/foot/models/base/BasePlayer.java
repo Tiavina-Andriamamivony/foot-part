@@ -1,7 +1,7 @@
 package org.prog3.foot.models.base;
 
 import lombok.Data;
-import org.prog3.foot.models.Position;
+import org.prog3.foot.models.PlayerPosition;
 
 @Data
 /**
@@ -14,6 +14,6 @@ public class BasePlayer {
     private String name;
     private Integer age;
     private String nationality;
-    private Position position;
+    private PlayerPosition playerPosition;
     private Integer number;
 }

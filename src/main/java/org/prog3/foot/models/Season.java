@@ -1,13 +1,13 @@
 package org.prog3.foot.models;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
-
+@EqualsAndHashCode(callSuper=true)
 @Data
-public class Season {
+public class Season extends CreateSeason {
     private SeasonStatus status;
-    private Integer year;
-    private String alias;
+    private String id;
 
     //Méthode de vérification de la transition du status
     private boolean transitionIsOkay(SeasonStatus pretendingStatus) {

@@ -9,10 +9,12 @@ import lombok.Data;
 @Data
 public class CreateSeason {
         private Integer year;
-        private String alias;
+        private String alias=GenerateSeasonAlias();
 
-        public boolean GenerateSeasonAlias(){
+
+
+        public String GenerateSeasonAlias(){
             setAlias("S"+year+"-"+year+1);
-            return true;
+            return alias;
         }
 }

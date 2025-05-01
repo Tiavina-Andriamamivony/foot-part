@@ -23,22 +23,23 @@ public class PayerRepositoryImplementation implements PlayerRepository {
     @Override
     public List<ClubPlayer> getClubPlayers() {
         String sql = """
-            SELECT p.*, c.name as club_name, c.acronym as club_acronym, 
-                   c.year_creation, c.stadium, c.coach_name, c.coach_nationality
-            FROM player p
-            LEFT JOIN club c ON p.club_id = c.id
-            """;
+        SELECT p.*, c.name as club_name, c.acronym as club_acronym, 
+               c."yearCreation" as club_year_creation, c.stadium as club_stadium, 
+               c."coachName" as club_coach_name, c."coachNationality" as club_coach_nationality
+        FROM "Player" p
+        LEFT JOIN "Club" c ON p."clubId" = c.id
+        """;
 
         List<ClubPlayer> result = new ArrayList<>();
 
-        try(Connection con = dataSource.getConnection();
-            PreparedStatement ps = con.prepareStatement(sql);
-            ResultSet rs = ps.executeQuery()) {
-            
-            while(rs.next()) {
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
                 ClubPlayer clubPlayer = new ClubPlayer();
-                
-                // Set Player properties
+
+                // Joueur
                 clubPlayer.setId(rs.getString("id"));
                 clubPlayer.setName(rs.getString("name"));
                 clubPlayer.setNumber(rs.getInt("number"));
@@ -46,20 +47,20 @@ public class PayerRepositoryImplementation implements PlayerRepository {
                 clubPlayer.setNationality(rs.getString("nationality"));
                 clubPlayer.setAge(rs.getInt("age"));
 
-                // Set Club properties if player has a club
-                String clubId = rs.getString("club_id");
+                // Club (si existant)
+                String clubId = rs.getString("clubId");
                 if (clubId != null) {
                     Club club = new Club();
                     club.setId(clubId);
                     club.setName(rs.getString("club_name"));
                     club.setAcronym(rs.getString("club_acronym"));
-                    club.setYearCreation(rs.getInt("year_creation"));
-                    club.setStadium(rs.getString("stadium"));
-                    
-                    // Set Coach information
+                    club.setYearCreation(rs.getInt("club_year_creation")); // Correction ici
+                    club.setStadium(rs.getString("club_stadium"));
+
+                    // Entraîneur
                     Coach coach = new Coach();
-                    coach.setName(rs.getString("coach_name"));
-                    coach.setNationality(rs.getString("coach_nationality"));
+                    coach.setName(rs.getString("club_coach_name")); // Correction ici
+                    coach.setNationality(rs.getString("club_coach_nationality")); // Correction ici
                     club.setCoach(coach);
 
                     clubPlayer.setClub(club);
@@ -68,7 +69,7 @@ public class PayerRepositoryImplementation implements PlayerRepository {
                 result.add(clubPlayer);
             }
 
-        } catch(SQLException e) {
+        } catch (SQLException e) {
             throw new RuntimeException(e);
         }
 

@@ -1,16 +1,19 @@
 package org.prog3.foot.controllers.player;
 
+import lombok.AllArgsConstructor;
 import org.prog3.foot.models.ClubPlayer;
 import org.prog3.foot.models.Player;
 import org.prog3.foot.models.PlayerStatsitic;
+import org.prog3.foot.service.PlayerService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
+@AllArgsConstructor
 public class PlayerController {
-
+    private final PlayerService service;
     //TODO: Créer la table player et ses mapper
     /**
      * @Description Get list of players in the championship
@@ -18,7 +21,7 @@ public class PlayerController {
      */
     @GetMapping("/players")
     public ResponseEntity<List<ClubPlayer>> getClubPlayers() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return ResponseEntity.ok(service.getClubPlayers());
     }
 
     /**

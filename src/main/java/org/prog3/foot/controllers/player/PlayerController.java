@@ -23,7 +23,6 @@ public class PlayerController {
 
     /**
      * @Description Create or update players without attaching them into club
-     * @param players
      * @return A list of player Update or created if they don't exist
      */
     @PutMapping("/players")

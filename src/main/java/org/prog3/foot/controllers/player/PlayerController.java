@@ -1,10 +1,12 @@
 package org.prog3.foot.controllers.player;
 
 import lombok.AllArgsConstructor;
+import org.prog3.foot.exception.NotFoundException;
 import org.prog3.foot.models.ClubPlayer;
 import org.prog3.foot.models.Player;
 import org.prog3.foot.models.PlayerStatsitic;
 import org.prog3.foot.service.PlayerService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,8 +22,15 @@ public class PlayerController {
      * @return List of ClubPlayer
      */
     @GetMapping("/players")
-    public ResponseEntity<List<ClubPlayer>> getClubPlayers() {
-        return ResponseEntity.ok(service.getClubPlayers());
+    public ResponseEntity<List<ClubPlayer>> getClubPlayers(@RequestParam(required = false, name ="name" )String name,
+                                                           @RequestParam(required = false,name = "ageMinimum")Integer ageMinimum,
+                                                           @RequestParam(required = false,name = "ageMaximum")Integer ageMaximum,
+                                                           @RequestParam(required = false,name = "clubName")String clubName) {
+        if(service.getClubPlayers(name,ageMinimum,ageMaximum,clubName).isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+        return ResponseEntity.ok(service.getClubPlayers(name,ageMinimum,ageMaximum,clubName));
+
     }
 
     /**

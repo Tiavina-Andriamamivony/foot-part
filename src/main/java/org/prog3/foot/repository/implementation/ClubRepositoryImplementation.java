@@ -74,7 +74,60 @@ public class ClubRepositoryImplementation implements ClubRepository {
      */
     @Override
     public List<Club> upCreateClub(List<Club> clubs) {
-        return List.of();
+        String upsertSql = """
+            INSERT INTO "Club" (id, name, acronym, "yearCreation", stadium, "coachName", "coachNationality")
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (id) DO UPDATE SET
+                name = EXCLUDED.name,
+                acronym = EXCLUDED.acronym,
+                "yearCreation" = EXCLUDED."yearCreation",
+                stadium = EXCLUDED.stadium,
+                "coachName" = EXCLUDED."coachName",
+                "coachNationality" = EXCLUDED."coachNationality"
+            RETURNING id, name, acronym, "yearCreation", stadium, "coachName", "coachNationality"
+            """;
+
+        List<Club> result = new ArrayList<>();
+
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(upsertSql)) {
+
+            for (Club club : clubs) {
+                // Generate UUID for new clubs if id is not provided
+                String id = club.getId() != null ? club.getId() : java.util.UUID.randomUUID().toString();
+                
+                ps.setString(1, id);
+                ps.setString(2, club.getName());
+                ps.setString(3, club.getAcronym());
+                ps.setInt(4, club.getYearCreation());
+                ps.setString(5, club.getStadium());
+                ps.setString(6, club.getCoach().getName());
+                ps.setString(7, club.getCoach().getNationality());
+
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Club updatedClub = new Club();
+                        updatedClub.setId(rs.getString("id"));
+                        updatedClub.setName(rs.getString("name"));
+                        updatedClub.setAcronym(rs.getString("acronym"));
+                        updatedClub.setYearCreation(rs.getInt("yearCreation"));
+                        updatedClub.setStadium(rs.getString("stadium"));
+                        
+                        Coach coach = new Coach();
+                        coach.setName(rs.getString("coachName"));
+                        coach.setNationality(rs.getString("coachNationality"));
+                        updatedClub.setCoach(coach);
+
+                        result.add(updatedClub);
+                    }
+                }
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+        return result;
     }
 
     /**

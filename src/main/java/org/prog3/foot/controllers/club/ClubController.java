@@ -23,7 +23,7 @@ public class ClubController {
 
     @PutMapping("/clubs")
     public ResponseEntity<List<Club>> upCreateClub(@RequestBody List<Club> clubs) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return ResponseEntity.ok(service.upCreateClub(clubs));
     }
 
     @GetMapping("/clubs/{id}/players")

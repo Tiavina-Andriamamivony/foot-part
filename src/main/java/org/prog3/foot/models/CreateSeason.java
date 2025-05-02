@@ -11,12 +11,6 @@ import java.io.Serializable;
 @Data
 public class CreateSeason implements Serializable {
         private Integer year;
-        private String alias=GenerateSeasonAlias();
+        private String alias;
 
-
-
-        public String GenerateSeasonAlias(){
-            setAlias("S"+year+"-"+year+1);
-            return alias;
-        }
 }

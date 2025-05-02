@@ -47,7 +47,7 @@ public class SeasonController {
      */
     @PostMapping("/seasons")
     public ResponseEntity<List<Season>> AddSeason(@RequestBody List<CreateSeason> seasons) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return ResponseEntity.ok(service.AddSeasons(seasons));
     }
 
     /**

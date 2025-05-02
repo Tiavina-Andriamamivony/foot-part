@@ -39,7 +39,7 @@ public class PlayerController {
      */
     @PutMapping("/players")
     public ResponseEntity<List<Player>> upCreatePlayers(@RequestBody List<Player> players) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return ResponseEntity.ok(service.upCreatePlayers(players));
     }
 
     /**

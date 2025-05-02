@@ -87,7 +87,7 @@ public class PayerRepositoryImplementation implements PlayerRepository {
     public List<Player> upCreatePlayers(List<Player> players) {
         String upsertSql = """
             INSERT INTO "Player" (id, name, number, position, nationality, age)
-            VALUES (?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?::\"PlayerPosition\", ?, ?)
             ON CONFLICT (id) DO UPDATE SET
                 name = EXCLUDED.name,
                 number = EXCLUDED.number,

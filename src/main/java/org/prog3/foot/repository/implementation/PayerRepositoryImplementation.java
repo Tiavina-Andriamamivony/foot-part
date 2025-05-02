@@ -17,8 +17,9 @@ import java.util.List;
 public class PayerRepositoryImplementation implements PlayerRepository {
     private final DataSource dataSource;
 
-    /**
-     * @return
+    /**@Use GET/players
+     * @Status Done
+     * @return result/ List of all players and their clubs
      */
     @Override
     public List<ClubPlayer> getClubPlayers() {
@@ -77,12 +78,57 @@ public class PayerRepositoryImplementation implements PlayerRepository {
     }
 
     /**
-     * @param players
-     * @return
+     * @Use PUT/players
+     * @Status To test
+     * @param players/ List of player to upCreate
+     * @return result/The list of players upCreated
      */
     @Override
     public List<Player> upCreatePlayers(List<Player> players) {
-        return List.of();
+        String upsertSql = """
+            INSERT INTO "Player" (id, name, number, position, nationality, age)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT (id) DO UPDATE SET
+                name = EXCLUDED.name,
+                number = EXCLUDED.number,
+                position = EXCLUDED.position::\"PlayerPosition\",
+                nationality = EXCLUDED.nationality,
+                age = EXCLUDED.age
+            RETURNING *
+            """;
+
+        List<Player> result = new ArrayList<>();
+
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(upsertSql)) {
+
+            for (Player player : players) {
+                ps.setString(1, player.getId());
+                ps.setString(2, player.getName());
+                ps.setInt(3, player.getNumber());
+                ps.setString(4, player.getPlayerPosition().name());
+                ps.setString(5, player.getNationality());
+                ps.setInt(6, player.getAge());
+
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Player updatedPlayer = new Player();
+                        updatedPlayer.setId(rs.getString("id"));
+                        updatedPlayer.setName(rs.getString("name"));
+                        updatedPlayer.setNumber(rs.getInt("number"));
+                        updatedPlayer.setPlayerPosition(PlayerPosition.valueOf(rs.getString("position")));
+                        updatedPlayer.setNationality(rs.getString("nationality"));
+                        updatedPlayer.setAge(rs.getInt("age"));
+                        result.add(updatedPlayer);
+                    }
+                }
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+        return result;
     }
 
     /**

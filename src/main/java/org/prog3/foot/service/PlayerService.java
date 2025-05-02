@@ -3,6 +3,7 @@ package org.prog3.foot.service;
 import lombok.AllArgsConstructor;
 import org.prog3.foot.models.ClubPlayer;
 import org.prog3.foot.models.Player;
+import org.prog3.foot.models.PlayerStatsitic;
 import org.prog3.foot.repository.PlayerRepository;
 import org.springframework.stereotype.Service;
 
@@ -49,4 +50,8 @@ public class PlayerService {
     public List<Player> upCreatePlayers(List<Player> players){
         return repository.upCreatePlayers(players);
     }
+    public PlayerStatsitic getPlayerStatsitic(String id, Integer seasonYear){
+        return repository.getPlayerStatsitic(id, seasonYear);
+    };
+
 }

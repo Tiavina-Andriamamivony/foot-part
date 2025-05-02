@@ -49,4 +49,9 @@ public class PlayerRepositoryTest {
         Assertions.assertFalse(firstGet.size() == secondGet.size());
     }
 
+    @Test
+    void getStatistics(){
+        System.out.println(repo.getPlayerStatsitic("lacazette",2023));
+    }
+
 }

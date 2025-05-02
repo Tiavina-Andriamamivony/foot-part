@@ -1,9 +1,11 @@
 package org.prog3.foot.controllers.season;
 
 import lombok.AllArgsConstructor;
+import org.prog3.foot.exception.NotFoundException;
 import org.prog3.foot.models.CreateSeason;
 import org.prog3.foot.models.Season;
 import org.prog3.foot.models.UpdateSeasonStatus;
+import org.prog3.foot.service.SeasonService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,6 +14,9 @@ import java.util.List;
 @AllArgsConstructor
 @RestController
 public class SeasonController {
+
+    private final SeasonService service;
+
     /**
      * @JsonReturnType:
      * {
@@ -24,7 +29,7 @@ public class SeasonController {
      */
     @GetMapping("/seasons")
     public ResponseEntity<List<Season>> GetSeasons() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return ResponseEntity.ok(service.GetSeasons());
     }
 
     /**

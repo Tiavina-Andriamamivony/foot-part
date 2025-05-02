@@ -4,10 +4,16 @@ import lombok.AllArgsConstructor;
 import org.prog3.foot.configuration.DataSource;
 import org.prog3.foot.models.CreateSeason;
 import org.prog3.foot.models.Season;
+import org.prog3.foot.models.SeasonStatus;
 import org.prog3.foot.models.UpdateSeasonStatus;
 import org.prog3.foot.repository.SeasonRepository;
 import org.springframework.stereotype.Repository;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 @Repository
 @AllArgsConstructor
@@ -19,7 +25,33 @@ public class SeasonRepositoryImplementation implements SeasonRepository {
      */
     @Override
     public List<Season> GetSeasons() {
-        return List.of();
+        String sql = """
+            SELECT id, year, alias, status
+            FROM "Season"
+            ORDER BY year ASC
+            """;
+
+        List<Season> result = new ArrayList<>();
+
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+                Season season = new Season();
+                season.setId(rs.getString("id"));
+                season.setYear(rs.getInt("year"));
+                season.setAlias(rs.getString("alias"));
+                //TODO: Créer un mapper pour ça
+                season.setStatus(SeasonStatus.valueOf(rs.getString("status")));
+                result.add(season);
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+        return result;
     }
 
     /**

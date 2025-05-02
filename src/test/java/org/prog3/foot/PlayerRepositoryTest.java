@@ -6,7 +6,6 @@ import org.prog3.foot.configuration.DataSource;
 import org.prog3.foot.models.ClubPlayer;
 import org.prog3.foot.models.Player;
 import org.prog3.foot.models.PlayerPosition;
-import org.prog3.foot.repository.PlayerRepository;
 import org.prog3.foot.repository.implementation.PayerRepositoryImplementation;
 
 import java.util.ArrayList;

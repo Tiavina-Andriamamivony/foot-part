@@ -50,7 +50,8 @@ public class PlayerController {
      */
     @GetMapping("/players/{id}/statistics/{seasonYear}")
     public ResponseEntity<PlayerStatsitic> GetPlayerStatistic(@PathVariable String id, @PathVariable Integer seasonYear) {
-        throw new UnsupportedOperationException("Not supported yet.");
+
+    return ResponseEntity.ok(service.getPlayerStatsitic(id, seasonYear));
     }
 
 

@@ -1,7 +1,9 @@
 package org.prog3.foot.models;
 
-import java.io.Serializable;
+import lombok.Data;
 
+import java.io.Serializable;
+@Data
 public class PlayingTime implements Serializable  {
     private Integer value;
     private DurationUnit durationUnit;

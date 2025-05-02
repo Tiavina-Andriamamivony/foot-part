@@ -135,7 +135,43 @@ public class PayerRepositoryImplementation implements PlayerRepository {
      * @return
      */
     @Override
-    public PlayerStatsitic getPlayerStatsitic() {
-        return null;
+    public PlayerStatsitic getPlayerStatsitic(String id, Integer seasonYear) {
+        String sql = """
+            SELECT 
+                COUNT(CASE WHEN g.id IS NOT NULL AND g."isOwnGoal" = false THEN 1 END) as scored_goals
+            FROM "Player" p
+            LEFT JOIN "Goal" g ON g."playerId" = p.id
+            LEFT JOIN "Match" m ON g."matchId" = m.id
+            LEFT JOIN "Season" s ON m."seasonId" = s.id
+            WHERE p.id = ? AND s.year = ?
+            GROUP BY p.id
+            """;
+
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setString(1, id);
+            ps.setInt(2, seasonYear);
+
+            PlayerStatsitic statistics = new PlayerStatsitic();
+            // Default values
+            statistics.setScoreGoals(0);
+
+            PlayingTime playingTime = new PlayingTime();
+            playingTime.setValue(0);
+            playingTime.setDurationUnit(DurationUnit.SECOND);
+            statistics.setPlayingTime(playingTime);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    statistics.setScoreGoals(rs.getInt("scored_goals"));
+                }
+            }
+
+            return statistics;
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

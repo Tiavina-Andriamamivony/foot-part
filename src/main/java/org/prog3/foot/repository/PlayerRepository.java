@@ -9,5 +9,5 @@ import java.util.List;
 public interface PlayerRepository {
      List<ClubPlayer> getClubPlayers();
      List<Player> upCreatePlayers(List<Player> players);
-     PlayerStatsitic getPlayerStatsitic();
+     PlayerStatsitic getPlayerStatsitic(String id, Integer seasonYear);
 }

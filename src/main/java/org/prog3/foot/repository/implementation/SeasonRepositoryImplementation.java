@@ -60,7 +60,42 @@ public class SeasonRepositoryImplementation implements SeasonRepository {
      */
     @Override
     public List<Season> AddSeasons(List<CreateSeason> seasons) {
-        return List.of();
+        String insertSql = """
+            INSERT INTO "Season" (id, year, alias, status)
+            VALUES (?, ?, ?, 'NOT_STARTED')
+            RETURNING id, year, alias, status
+            """;
+
+        List<Season> result = new ArrayList<>();
+
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(insertSql)) {
+
+            for (CreateSeason createSeason : seasons) {
+                // Generate UUID for new season
+                String id = java.util.UUID.randomUUID().toString();
+                
+                ps.setString(1, id);
+                ps.setInt(2, createSeason.getYear());
+                ps.setString(3, createSeason.getAlias());
+
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Season season = new Season();
+                        season.setId(rs.getString("id"));
+                        season.setYear(rs.getInt("year"));
+                        season.setAlias(rs.getString("alias"));
+                        season.setStatus(SeasonStatus.valueOf(rs.getString("status")));
+                        result.add(season);
+                    }
+                }
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+        return result;
     }
 
     /**

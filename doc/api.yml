@@ -83,7 +83,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Season'
+                type: array
+                items:
+                  $ref: '#/components/schemas/Season'
     post:
       tags:
         - Season

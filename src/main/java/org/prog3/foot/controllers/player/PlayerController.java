@@ -50,8 +50,12 @@ public class PlayerController {
      */
     @GetMapping("/players/{id}/statistics/{seasonYear}")
     public ResponseEntity<PlayerStatsitic> GetPlayerStatistic(@PathVariable String id, @PathVariable Integer seasonYear) {
+    try{
+        return ResponseEntity.ok(service.getPlayerStatsitic(id, seasonYear));
+    }catch(NotFoundException e ){
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+    }
 
-    return ResponseEntity.ok(service.getPlayerStatsitic(id, seasonYear));
     }
 
 

@@ -103,8 +103,71 @@ public class SeasonRepositoryImplementation implements SeasonRepository {
      * @param seasonYear
      * @return
      */
-    @Override
-    public Season changeSeasonStatus(UpdateSeasonStatus pretending, Integer seasonYear) {
-        return null;
-    }
+     /**
+          * Changes the status of a season for a specific year following the transition rules:
+          * NOT_STARTED > STARTED > FINISHED
+          * 
+          * @param pretending The new status to set for the season
+          * @param seasonYear The year of the season to update
+          * @return The updated season with its new status
+          * @throws RuntimeException if the season is not found or if the status transition is invalid
+          */
+     @Override
+     public Season changeSeasonStatus(UpdateSeasonStatus pretending, Integer seasonYear) {
+         String selectSql = """
+             SELECT id, year, alias, status
+             FROM "Season"
+             WHERE year = ?
+             """;
+    
+         String updateSql = """
+             UPDATE "Season"
+             SET status = ?::\"SeasonStatus\"
+             WHERE year = ?
+             RETURNING id, year, alias, status
+             """;
+    
+         try (Connection con = dataSource.getConnection()) {
+             // First get the current season
+             Season season = new Season();
+             try (PreparedStatement ps = con.prepareStatement(selectSql)) {
+                 ps.setInt(1, seasonYear);
+                 try (ResultSet rs = ps.executeQuery()) {
+                     if (rs.next()) {
+                         season.setId(rs.getString("id"));
+                         season.setYear(rs.getInt("year"));
+                         season.setAlias(rs.getString("alias"));
+                         season.setStatus(SeasonStatus.valueOf(rs.getString("status")));
+                     } else {
+                         throw new RuntimeException("Season not found for year: " + seasonYear);
+                     }
+                 }
+             }
+    
+             // Check if transition is valid and update status
+             String transitionResult = season.transitionStatus(pretending.getStatus());
+             if (transitionResult.startsWith("Transition NOT")) {
+                 throw new RuntimeException("Invalid status transition");
+             }
+    
+             // Update the season status
+             try (PreparedStatement ps = con.prepareStatement(updateSql)) {
+                 ps.setString(1, season.getStatus().name());
+                 ps.setInt(2, seasonYear);
+                 try (ResultSet rs = ps.executeQuery()) {
+                     if (rs.next()) {
+                         season.setId(rs.getString("id"));
+                         season.setYear(rs.getInt("year"));
+                         season.setAlias(rs.getString("alias"));
+                         season.setStatus(SeasonStatus.valueOf(rs.getString("status")));
+                     }
+                 }
+             }
+    
+             return season;
+    
+         } catch (SQLException e) {
+             throw new RuntimeException(e);
+         }
+     }
 }

@@ -1,27 +1,33 @@
 package org.prog3.foot.controllers.club;
 
+import lombok.AllArgsConstructor;
 import org.prog3.foot.models.Club;
 import org.prog3.foot.models.ClubStatistics;
 import org.prog3.foot.models.Player;
+import org.prog3.foot.service.ClubService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
+@AllArgsConstructor
+
 public class ClubController {
+    private final ClubService service;
+
     @GetMapping("/clubs")
     public ResponseEntity<List<Club>> getClubs() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return ResponseEntity.ok(service.getClubs());
     }
 
     @PutMapping("/clubs")
-    public ResponseEntity<Club> upCreateClub(@RequestBody Club club) {
+    public ResponseEntity<List<Club>> upCreateClub(@RequestBody List<Club> clubs) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
     @GetMapping("/clubs/{id}/players")
-    public ResponseEntity<List<Player>> getPlayersFromASpecificClub(@PathVariable int id) {
+    public ResponseEntity<List<Player>> getPlayersFromASpecificClub(@PathVariable String id) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
@@ -33,7 +39,7 @@ public class ClubController {
      * @return
      */
     @PutMapping("/clubs/{id}/players")
-    public ResponseEntity<Player> updatePlayer(@PathVariable int id, @RequestBody Player player) {
+    public ResponseEntity<Player> dropPlayer(@PathVariable int id, @RequestBody Player player) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
     @PostMapping("/clubs/{id}/players")

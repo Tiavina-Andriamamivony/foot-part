@@ -65,6 +65,10 @@ public class SeasonController {
      */
     @PutMapping("/seasons/{seasonYear}/status")
     public ResponseEntity<Season> changeSeasonStatus(@RequestBody UpdateSeasonStatus seasonStatus, @PathVariable Integer seasonYear) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        try{
+            return ResponseEntity.ok(service.changeSeasonStatus(seasonStatus, seasonYear));
+        }catch(NotFoundException e){
+            return ResponseEntity.notFound().build();
+        }
     }
 }

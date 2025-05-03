@@ -6,6 +6,7 @@ import org.prog3.foot.models.Club;
 import org.prog3.foot.models.ClubStatistics;
 import org.prog3.foot.models.Coach;
 import org.prog3.foot.models.Player;
+import org.prog3.foot.models.PlayerPosition;
 import org.prog3.foot.repository.ClubRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Repository;
@@ -138,7 +139,39 @@ public class ClubRepositoryImplementation implements ClubRepository {
      */
     @Override
     public List<Player> getPlayersFromASpecificClub(String id) {
-        return List.of();
+        String sql = """
+            SELECT p.id, p.name, p.number, p.position, p.nationality, p.age
+            FROM "Player" p
+            WHERE p."clubId" = ?
+            ORDER BY p.number ASC
+            """;
+
+        List<Player> result = new ArrayList<>();
+
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            
+            ps.setString(1, id);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Player player = new Player();
+                    player.setId(rs.getString("id"));
+                    player.setName(rs.getString("name"));
+                    player.setNumber(rs.getInt("number"));
+                    player.setPlayerPosition(PlayerPosition.valueOf(rs.getString("position")));
+                    player.setNationality(rs.getString("nationality"));
+                    player.setAge(rs.getInt("age"));
+                    
+                    result.add(player);
+                }
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+        return result;
     }
 
     /**

@@ -261,7 +261,63 @@ public class ClubRepositoryImplementation implements ClubRepository {
      */
     @Override
     public List<Player> addPlayer(String id, List<Player> playersToAdd) {
-        return List.of();
+        // Check if any player is already attached to another club
+        String checkAttachmentSql = """
+            SELECT COUNT(*) as count, "clubId"
+            FROM "Player"
+            WHERE id = ? AND "clubId" IS NOT NULL
+            GROUP BY "clubId"
+            """;
+
+        // Upsert players
+        String upsertSql = """
+            INSERT INTO "Player" (id, name, number, position, nationality, age, "clubId")
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (id) DO UPDATE SET
+                "clubId" = EXCLUDED."clubId"
+            WHERE "Player"."clubId" IS NULL
+            RETURNING id, name, number, position, nationality, age
+            """;
+
+        try (Connection con = dataSource.getConnection()) {
+            // First verify no player is attached to another club
+            try (PreparedStatement checkPs = con.prepareStatement(checkAttachmentSql)) {
+                for (Player player : playersToAdd) {
+                    if (player.getId() != null) {
+                        checkPs.setString(1, player.getId());
+                        try (ResultSet rs = checkPs.executeQuery()) {
+                            if (rs.next() && !id.equals(rs.getString("clubId"))) {
+                                throw new RuntimeException("Player " + player.getId() + " is already attached to another club");
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Then proceed with the upsert
+            try (PreparedStatement upsertPs = con.prepareStatement(upsertSql)) {
+                for (Player player : playersToAdd) {
+                    String playerId = player.getId() != null ? player.getId() : java.util.UUID.randomUUID().toString();
+                    
+                    upsertPs.setString(1, playerId);
+                    upsertPs.setString(2, player.getName());
+                    upsertPs.setInt(3, player.getNumber());
+                    upsertPs.setObject(4, player.getPlayerPosition().name());
+                    upsertPs.setString(5, player.getNationality());
+                    upsertPs.setInt(6, player.getAge());
+                    upsertPs.setString(7, id);
+
+                    upsertPs.addBatch();
+                }
+                upsertPs.executeBatch();
+            }
+
+            // Finally, return all players in the club
+            return getPlayersFromASpecificClub(id);
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**

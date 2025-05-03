@@ -336,7 +336,105 @@ public class ClubRepositoryImplementation implements ClubRepository {
      * @return List of club statistics for the specified season
      */
     @Override
-    public ResponseEntity<List<ClubStatistics>> getClubStatistics(Integer seasonYear) {
-        return null;
+    public List<ClubStatistics> getClubStatistics(Integer seasonYear) {
+        String sql = """
+            WITH CleanSheets AS (
+                SELECT m."homeClubId" as clubId, COUNT(*) as cleanSheets
+                FROM "Match" m
+                LEFT JOIN "Goal" g ON g."matchId" = m.id AND g."clubId" = m."awayClubId"
+                WHERE m."seasonId" IN (SELECT id FROM "Season" WHERE year = ?)
+                AND g.id IS NULL
+                GROUP BY m."homeClubId"
+                UNION ALL
+                SELECT m."awayClubId" as clubId, COUNT(*) as cleanSheets
+                FROM "Match" m
+                LEFT JOIN "Goal" g ON g."matchId" = m.id AND g."clubId" = m."homeClubId"
+                WHERE m."seasonId" IN (SELECT id FROM "Season" WHERE year = ?)
+                AND g.id IS NULL
+                GROUP BY m."awayClubId"
+            ),
+            GoalsScored AS (
+                SELECT g."clubId", COUNT(*) as scored
+                FROM "Goal" g
+                JOIN "Match" m ON m.id = g."matchId"
+                WHERE m."seasonId" IN (SELECT id FROM "Season" WHERE year = ?)
+                AND g."isOwnGoal" = false
+                GROUP BY g."clubId"
+            ),
+            GoalsConceded AS (
+                SELECT g."clubId", COUNT(*) as conceded
+                FROM "Goal" g
+                JOIN "Match" m ON m.id = g."matchId"
+                WHERE m."seasonId" IN (SELECT id FROM "Season" WHERE year = ?)
+                GROUP BY g."clubId"
+            )
+            SELECT 
+                c.id,
+                c.name,
+                c.acronym,
+                c."yearCreation",
+                c.stadium,
+                c."coachName",
+                c."coachNationality",
+                COALESCE(gs.scored, 0) as scored_goals,
+                COALESCE(gc.conceded, 0) as conceded_goals,
+                COALESCE(gs.scored, 0) - COALESCE(gc.conceded, 0) as goal_difference,
+                COALESCE(cs.cleanSheets, 0) as clean_sheets,
+                (COALESCE(gs.scored, 0) * 3) as ranking_points
+            FROM "Club" c
+            LEFT JOIN GoalsScored gs ON gs."clubId" = c.id
+            LEFT JOIN GoalsConceded gc ON gc."clubId" = c.id
+            LEFT JOIN (
+                SELECT clubId, SUM(cleanSheets) as cleanSheets
+                FROM CleanSheets
+                GROUP BY clubId
+            ) cs ON cs.clubId = c.id
+            ORDER BY ranking_points DESC, goal_difference DESC, clean_sheets DESC
+            """;
+
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            
+            // Set the season year for all subqueries
+            ps.setInt(1, seasonYear);
+            ps.setInt(2, seasonYear);
+            ps.setInt(3, seasonYear);
+            ps.setInt(4, seasonYear);
+
+            List<ClubStatistics> statistics = new ArrayList<>();
+            
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    ClubStatistics stat = new ClubStatistics();
+                    
+                    // Set Club information
+                    stat.setId(rs.getString("id"));
+                    stat.setName(rs.getString("name"));
+                    stat.setAcronym(rs.getString("acronym"));
+                    stat.setYearCreation(rs.getInt("yearCreation"));
+                    stat.setStadium(rs.getString("stadium"));
+                    
+                    // Set Coach information
+                    Coach coach = new Coach();
+                    coach.setName(rs.getString("coachName"));
+                    coach.setNationality(rs.getString("coachNationality"));
+                    stat.setCoach(coach);
+                    
+                    // Set Statistics
+                    stat.setScoreGoals(rs.getInt("scored_goals"));
+                    stat.setConcededGoals(rs.getInt("conceded_goals"));
+                    stat.setDifferenceGoals(rs.getInt("goal_difference"));
+                    stat.setCleanSheetNumber(rs.getInt("clean_sheets"));
+                    stat.setRankingPoints(rs.getInt("ranking_points"));
+                    
+                    statistics.add(stat);
+                }
+            }
+            
+            return statistics;
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

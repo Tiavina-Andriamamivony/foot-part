@@ -60,6 +60,10 @@ public class ClubController {
     }
     @GetMapping("/clubs/statistics/{seasonYear}")
     public ResponseEntity<List<ClubStatistics>> getClubStatistics(@PathVariable int seasonYear) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        try{
+            return ResponseEntity.ok(service.getClubStatistics(seasonYear));
+        }catch(NotFoundException e){
+            return ResponseEntity.notFound().build();
+        }
     }
 }

@@ -31,7 +31,7 @@ public class ClubService {
     public List<Player> addPlayer(String id, List<Player> playersToAdd) {
     return repository.addPlayer(id, playersToAdd);
     }
-    public ResponseEntity<List<ClubStatistics>> getClubStatistics(Integer seasonYear) {
+    public List<ClubStatistics> getClubStatistics(Integer seasonYear) {
     return repository.getClubStatistics(seasonYear);
     }
 }

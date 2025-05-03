@@ -145,8 +145,8 @@ public class SeasonRepositoryImplementation implements SeasonRepository {
              }
     
              // Check if transition is valid and update status
-             String transitionResult = season.transitionStatus(pretending.getStatus());
-             if (transitionResult.startsWith("Transition NOT")) {
+             boolean transitionResult = season.transitionStatus(pretending.getStatus());
+             if (transitionResult==false) {
                  throw new RuntimeException("Invalid status transition");
              }
     

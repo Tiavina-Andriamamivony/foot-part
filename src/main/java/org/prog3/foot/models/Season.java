@@ -16,12 +16,12 @@ public class Season extends CreateSeason implements Serializable {
         return pretendingStatus.ordinal() - this.status.ordinal() == 1 || pretendingStatus.ordinal() - this.status.ordinal() == -1;
     }
 
-    public String transitionStatus(SeasonStatus pretendingStatus) {
+    public boolean transitionStatus(SeasonStatus pretendingStatus) {
         if (transitionIsOkay(pretendingStatus)) {
             setStatus(pretendingStatus);
-            return "Transition OK and done";
+            return true;
         }
-        return "Transition NOT done, error in order of transition";
+        return false;
     }
 
 }

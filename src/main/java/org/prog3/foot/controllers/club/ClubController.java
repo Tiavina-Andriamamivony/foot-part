@@ -51,8 +51,12 @@ public class ClubController {
         }
     }
     @PostMapping("/clubs/{id}/players")
-    public ResponseEntity<Player> addPlayer(@PathVariable int id, @RequestBody Player player) {
-        throw new UnsupportedOperationException("Not supported yet.");
+    public ResponseEntity<List<Player>> addPlayer(@PathVariable String id, @RequestBody List<Player> player) {
+        try{
+            return ResponseEntity.ok(service.addPlayer(id,player ));
+        }catch(NotFoundException e){
+            return ResponseEntity.notFound().build();
+        }
     }
     @GetMapping("/clubs/statistics/{seasonYear}")
     public ResponseEntity<List<ClubStatistics>> getClubStatistics(@PathVariable int seasonYear) {

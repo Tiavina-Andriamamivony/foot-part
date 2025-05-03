@@ -1,6 +1,7 @@
 package org.prog3.foot.controllers.club;
 
 import lombok.AllArgsConstructor;
+import org.prog3.foot.exception.NotFoundException;
 import org.prog3.foot.models.Club;
 import org.prog3.foot.models.ClubStatistics;
 import org.prog3.foot.models.Player;
@@ -42,8 +43,12 @@ public class ClubController {
      * @return
      */
     @PutMapping("/clubs/{id}/players")
-    public ResponseEntity<Player> dropPlayer(@PathVariable int id, @RequestBody Player player) {
-        throw new UnsupportedOperationException("Not supported yet.");
+    public ResponseEntity<List<Player>> dropPlayer(@PathVariable String id, @RequestBody List<Player> player) {
+        try{
+            return ResponseEntity.ok(service.dropPlayer(id,player));
+        }catch(NotFoundException e){
+            return ResponseEntity.notFound().build();
+        }
     }
     @PostMapping("/clubs/{id}/players")
     public ResponseEntity<Player> addPlayer(@PathVariable int id, @RequestBody Player player) {

@@ -25,7 +25,7 @@ public class ClubService {
     public List<Player> getPlayersFromASpecificClub(String id) {
     return repository.getPlayersFromASpecificClub(id);
     }
-    public ResponseEntity<Player> dropPlayer(String id, List<Player> playersToDrop) {
+    public List<Player> dropPlayer(String id, List<Player> playersToDrop) {
     return repository.dropPlayer(id, playersToDrop);
     }
     public List<Player> addPlayer(String id, List<Player> playersToAdd) {

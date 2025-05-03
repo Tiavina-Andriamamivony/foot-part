@@ -186,8 +186,66 @@ public class ClubRepositoryImplementation implements ClubRepository {
      * @throws RuntimeException if any player is still attached to another club
      */
     @Override
-    public ResponseEntity<Player> dropPlayer(String id, List<Player> playersToDrop) {
-        return null;
+    public List<Player> dropPlayer(String id, List<Player> playersToDrop) {
+        // Verify that all players to drop belong to the specified club
+        String verifyClubSql = """
+            SELECT COUNT(*) as count
+            FROM "Player"
+            WHERE id = ? AND "clubId" = ?
+            """;
+            
+        // Update query to detach players
+        String updateSql = """
+            UPDATE "Player"
+            SET "clubId" = NULL
+            WHERE id = ? AND "clubId" = ?
+            RETURNING id, name, number, position, nationality, age
+            """;
+
+        List<Player> droppedPlayers = new ArrayList<>();
+
+        try (Connection con = dataSource.getConnection()) {
+            // First verify each player belongs to the club
+            try (PreparedStatement verifyPs = con.prepareStatement(verifyClubSql)) {
+                for (Player player : playersToDrop) {
+                    verifyPs.setString(1, player.getId());
+                    verifyPs.setString(2, id);
+                    
+                    try (ResultSet rs = verifyPs.executeQuery()) {
+                        rs.next();
+                        if (rs.getInt("count") == 0) {
+                            throw new RuntimeException("Player " + player.getId() + " is not attached to club " + id);
+                        }
+                    }
+                }
+            }
+
+            // Then proceed with the update
+            try (PreparedStatement updatePs = con.prepareStatement(updateSql)) {
+                for (Player player : playersToDrop) {
+                    updatePs.setString(1, player.getId());
+                    updatePs.setString(2, id);
+                    
+                    try (ResultSet rs = updatePs.executeQuery()) {
+                        while (rs.next()) {
+                            Player droppedPlayer = new Player();
+                            droppedPlayer.setId(rs.getString("id"));
+                            droppedPlayer.setName(rs.getString("name"));
+                            droppedPlayer.setNumber(rs.getInt("number"));
+                            droppedPlayer.setPlayerPosition(PlayerPosition.valueOf(rs.getString("position")));
+                            droppedPlayer.setNationality(rs.getString("nationality"));
+                            droppedPlayer.setAge(rs.getInt("age"));
+                            
+                            droppedPlayers.add(droppedPlayer);
+                        }
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+        return droppedPlayers;
     }
 
     /**

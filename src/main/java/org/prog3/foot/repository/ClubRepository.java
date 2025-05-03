@@ -11,7 +11,7 @@ public interface ClubRepository {
     public List<Club> getClubs();
     public List<Club> upCreateClub(List<Club> clubs);
     public List<Player>  getPlayersFromASpecificClub(String id);
-    public ResponseEntity<Player> dropPlayer(String id, List<Player> playersToDrop);
+    public List<Player> dropPlayer(String id, List<Player> playersToDrop);
     public List<Player> addPlayer( String id, List<Player> playersToAdd);
     public ResponseEntity<List<ClubStatistics>> getClubStatistics(Integer seasonYear);
 }

@@ -13,8 +13,7 @@ public class Season extends CreateSeason implements Serializable {
 
     //Méthode de vérification de la transition du status
     private boolean transitionIsOkay(SeasonStatus pretendingStatus) {
-
-        return  pretendingStatus.ordinal() - this.status.ordinal() == 1;
+        return pretendingStatus.ordinal() - this.status.ordinal() == 1 || pretendingStatus.ordinal() - this.status.ordinal() == -1;
     }
 
     public String transitionStatus(SeasonStatus pretendingStatus) {

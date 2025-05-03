@@ -272,11 +272,11 @@ public class ClubRepositoryImplementation implements ClubRepository {
         // Upsert players
         String upsertSql = """
             INSERT INTO "Player" (id, name, number, position, nationality, age, "clubId")
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?::"PlayerPosition", ?, ?, ?)
             ON CONFLICT (id) DO UPDATE SET
                 "clubId" = EXCLUDED."clubId"
             WHERE "Player"."clubId" IS NULL
-            RETURNING id, name, number, position, nationality, age
+            RETURNING id, name, number, position::"PlayerPosition", nationality, age
             """;
 
         try (Connection con = dataSource.getConnection()) {

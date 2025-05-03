@@ -28,7 +28,10 @@ public class ClubController {
 
     @GetMapping("/clubs/{id}/players")
     public ResponseEntity<List<Player>> getPlayersFromASpecificClub(@PathVariable String id) {
-        throw new UnsupportedOperationException("Not supported yet.");
+    if(service.getPlayersFromASpecificClub(id).isEmpty()) {
+        return ResponseEntity.notFound().build();
+    }
+    return ResponseEntity.ok(service.getPlayersFromASpecificClub(id));
     }
 
     /**

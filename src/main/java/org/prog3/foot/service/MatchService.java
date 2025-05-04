@@ -14,16 +14,16 @@ import java.util.List;
 public class MatchService {
     private final MatchRepository repository;
     public List<Match> matchMaker(Integer seasonYear) {
-        throw new UnsupportedOperationException("Not supported yet.");
+       return repository.matchMaker(seasonYear);
     }
     public List<Match> getMatches(Integer seasonYear) {
-        throw new UnsupportedOperationException("Not supported yet.");
+       return repository.getMatches(seasonYear);
     }
 
     public Match updateMatchStatus(String id, MatchStatus status) {
-        throw new UnsupportedOperationException("Not supported yet.");
+       return repository.updateMatchStatus(id, status);
     }
     public Match addGoals(String matchId, List<AddGoal> goals) {
-        throw new UnsupportedOperationException("Not supported yet.");
+       return repository.addGoals(matchId, goals);
     }
 }

@@ -3,13 +3,15 @@ package org.prog3.foot.models;
 import lombok.Data;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data
 public class Match {
+    private String id;
     private MatchClub clubPlayingHome;
     private MatchClub clubPlayingAway;
     private String stadium;
-    private LocalDate matchDateTime;
+    private LocalDateTime matchDateTime;
     private MatchStatus actualStatus;
 
     private boolean transitionIsOkay(MatchStatus pretendingStatus) {

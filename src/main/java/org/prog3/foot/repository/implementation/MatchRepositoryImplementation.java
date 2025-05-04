@@ -17,9 +17,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 @Repository
 @AllArgsConstructor
@@ -150,7 +148,134 @@ public class MatchRepositoryImplementation implements MatchRepository {
      */
     @Override
     public List<Match> getMatches(Integer seasonYear) {
-        return List.of();
+        String sql = """
+        WITH match_goals AS (
+            SELECT 
+                g."matchId",
+                g."clubId",
+                g."playerId",
+                g."minuteOfGoal",
+                g."isOwnGoal",
+                p.name as player_name,
+                p.number as player_number,
+                COUNT(*) OVER (PARTITION BY g."matchId", g."clubId") as club_score
+            FROM "Goal" g
+            JOIN "Player" p ON p.id = g."playerId"
+        )
+        SELECT 
+            m.id, m."matchDatetime", m.stadium, m.status,
+            h.id as home_id, h.name as home_name, h.acronym as home_acronym,
+            a.id as away_id, a.name as away_name, a.acronym as away_acronym,
+            hg."playerId" as home_scorer_id, hg.player_name as home_scorer_name,
+            hg.player_number as home_scorer_number, hg."minuteOfGoal" as home_minute,
+            hg."isOwnGoal" as home_own_goal, COALESCE(hg.club_score, 0) as home_score,
+            ag."playerId" as away_scorer_id, ag.player_name as away_scorer_name,
+            ag.player_number as away_scorer_number, ag."minuteOfGoal" as away_minute,
+            ag."isOwnGoal" as away_own_goal, COALESCE(ag.club_score, 0) as away_score
+        FROM "Match" m
+        JOIN "Season" s ON s.id = m."seasonId"
+        JOIN "Club" h ON h.id = m."homeClubId"
+        JOIN "Club" a ON a.id = m."awayClubId"
+        LEFT JOIN match_goals hg ON hg."matchId" = m.id AND hg."clubId" = m."homeClubId"
+        LEFT JOIN match_goals ag ON ag."matchId" = m.id AND ag."clubId" = m."awayClubId"
+        WHERE s.year = ?
+        ORDER BY m."matchDatetime" ASC
+        """;
+
+        Map<String, Match> matchesMap = new HashMap<>();
+
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setInt(1, seasonYear);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String matchId = rs.getString("id");
+
+                    Match match = matchesMap.computeIfAbsent(matchId, k -> {
+                        try {
+                            Match m = new Match();
+                            m.setId(matchId);
+                            m.setStadium(rs.getString("stadium"));
+                            m.setMatchDateTime(rs.getObject("matchDatetime", LocalDateTime.class));
+                            m.setActualStatus(MatchStatus.valueOf(rs.getString("status")));
+
+                            // Home club
+                            MatchClub home = new MatchClub();
+                            home.setId(rs.getString("home_id"));
+                            home.setName(rs.getString("home_name"));
+                            home.setAcronym(rs.getString("home_acronym"));
+                            home.setScore(rs.getInt("home_score"));
+                            home.setScorers(new ArrayList<>());
+                            m.setClubPlayingHome(home);
+
+                            // Away club
+                            MatchClub away = new MatchClub();
+                            away.setId(rs.getString("away_id"));
+                            away.setName(rs.getString("away_name"));
+                            away.setAcronym(rs.getString("away_acronym"));
+                            away.setScore(rs.getInt("away_score"));
+                            away.setScorers(new ArrayList<>());
+                            m.setClubPlayingAway(away);
+
+                            return m;
+                        } catch (SQLException e) {
+                            throw new RuntimeException("Erreur lors de la lecture des données du match ID=" + matchId, e);
+                        }
+                    });
+
+                    try {
+                        // Home scorers
+                        if (rs.getString("home_scorer_id") != null) {
+                            addScorer(match.getClubPlayingHome().getScorers(),
+                                    rs.getString("home_scorer_id"),
+                                    rs.getString("home_scorer_name"),
+                                    rs.getInt("home_scorer_number"),
+                                    rs.getInt("home_minute"),
+                                    rs.getBoolean("home_own_goal"));
+                        }
+
+                        // Away scorers
+                        if (rs.getString("away_scorer_id") != null) {
+                            addScorer(match.getClubPlayingAway().getScorers(),
+                                    rs.getString("away_scorer_id"),
+                                    rs.getString("away_scorer_name"),
+                                    rs.getInt("away_scorer_number"),
+                                    rs.getInt("away_minute"),
+                                    rs.getBoolean("away_own_goal"));
+                        }
+
+                    } catch (SQLException e) {
+                        throw new RuntimeException("Erreur lors de l'ajout d’un buteur pour le match ID=" + matchId, e);
+                    }
+                }
+
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Erreur lors de la récupération des matchs pour l’année " + seasonYear, e);
+        }
+
+        return new ArrayList<>(matchesMap.values());
+    }
+
+
+    private void addScorer(List<Scorer> scorers, String playerId, String playerName, 
+                          int playerNumber, int minute, boolean isOwnGoal) {
+        PlayerMinimumInfo player = new PlayerMinimumInfo();
+        player.setId(playerId);
+        player.setName(playerName);
+        player.setNumber(playerNumber);
+
+        Scorer scorer = new Scorer();
+        scorer.setId(player.getId());
+        scorer.setName(player.getName());
+        scorer.setNumber(player.getNumber());
+        scorer.setMinuteOfGoal(minute);
+        scorer.setOwnGoal(isOwnGoal);
+
+        scorers.add(scorer);
     }
 
     /**

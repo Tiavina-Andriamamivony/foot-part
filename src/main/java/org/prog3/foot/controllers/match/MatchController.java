@@ -32,7 +32,7 @@ public class MatchController {
      */
     @GetMapping("/matches/{seasonYear}")
     public ResponseEntity<List<Match>> getMatches(@PathVariable Integer seasonYear) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return ResponseEntity.ok(service.getMatches(seasonYear));
     }
 
     /**

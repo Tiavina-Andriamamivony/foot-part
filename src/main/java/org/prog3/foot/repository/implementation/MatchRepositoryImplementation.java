@@ -287,7 +287,208 @@ public class MatchRepositoryImplementation implements MatchRepository {
 
     @Override
     public Match updateMatchStatus(String id, MatchStatus status) {
-        return null;
+        // First get the current match
+        String getMatchSql = """
+            SELECT m.id, m.stadium, m."matchDatetime", m.status,
+                   h.id as home_id, h.name as home_name, h.acronym as home_acronym,
+                   a.id as away_id, a.name as away_name, a.acronym as away_acronym,
+                   (SELECT COUNT(*) FROM "Goal" g WHERE g."matchId" = m.id AND g."clubId" = m."homeClubId") as home_score,
+                   (SELECT COUNT(*) FROM "Goal" g WHERE g."matchId" = m.id AND g."clubId" = m."awayClubId") as away_score
+            FROM "Match" m
+            JOIN "Club" h ON h.id = m."homeClubId"
+            JOIN "Club" a ON a.id = m."awayClubId"
+            WHERE m.id = ?
+            """;
+
+        try (Connection con = dataSource.getConnection()) {
+            Match match = null;
+            
+            // Get current match
+            try (PreparedStatement ps = con.prepareStatement(getMatchSql)) {
+                ps.setString(1, id);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) {
+                        throw new NotFoundException("Match not found");
+                    }
+                    
+                    match = new Match();
+                    match.setId(rs.getString("id"));
+                    match.setStadium(rs.getString("stadium"));
+                    match.setMatchDateTime(rs.getObject("matchDatetime", LocalDateTime.class));
+                    match.setActualStatus(MatchStatus.valueOf(rs.getString("status")));
+
+                    // Set home club with score
+                    MatchClub homeClub = new MatchClub();
+                    homeClub.setId(rs.getString("home_id"));
+                    homeClub.setName(rs.getString("home_name"));
+                    homeClub.setAcronym(rs.getString("home_acronym"));
+                    homeClub.setScore(rs.getInt("home_score"));
+                    homeClub.setScorers(new ArrayList<>());
+                    match.setClubPlayingHome(homeClub);
+
+                    // Set away club with score
+                    MatchClub awayClub = new MatchClub();
+                    awayClub.setId(rs.getString("away_id"));
+                    awayClub.setName(rs.getString("away_name"));
+                    awayClub.setAcronym(rs.getString("away_acronym"));
+                    awayClub.setScore(rs.getInt("away_score"));
+                    awayClub.setScorers(new ArrayList<>());
+                    match.setClubPlayingAway(awayClub);
+                }
+            }
+
+            // Check if transition is valid
+            if (!match.transitionStatus(status)) {
+                throw new BadRequestException("Invalid status transition");
+            }
+
+            // Update match status
+            String updateSql = "UPDATE \"Match\" SET status = ?::\"MatchStatus\" WHERE id = ?";
+            try (PreparedStatement ps = con.prepareStatement(updateSql)) {
+                ps.setString(1, status.name());
+                ps.setString(2, id);
+                ps.executeUpdate();
+            }
+
+            // If match is finished, update club rankings
+            if (status == MatchStatus.FINISHED) {
+                updateClubRankings(con, match);
+            }
+
+            // Get updated match with scorers
+            return getMatchWithScorers(con, id);
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void updateClubRankings(Connection con, Match match) throws SQLException {
+        int homeScore = match.getClubPlayingHome().getScore();
+        int awayScore = match.getClubPlayingAway().getScore();
+        
+        // Determine points based on match result
+        int homePoints = homeScore > awayScore ? 3 : (homeScore == awayScore ? 1 : 0);
+        int awayPoints = awayScore > homeScore ? 3 : (homeScore == awayScore ? 1 : 0);
+
+        // Update rankings in the database
+        String updateRankingSql = """
+            INSERT INTO "ClubRanking" ("clubId", "seasonId", points)
+            VALUES (?, (SELECT "seasonId" FROM "Match" WHERE id = ?), ?)
+            ON CONFLICT ("clubId", "seasonId") DO UPDATE 
+            SET points = "ClubRanking".points + EXCLUDED.points
+            """;
+
+        try (PreparedStatement ps = con.prepareStatement(updateRankingSql)) {
+            // Update home club points
+            ps.setString(1, match.getClubPlayingHome().getId());
+            ps.setString(2, match.getId());
+            ps.setInt(3, homePoints);
+            ps.executeUpdate();
+
+            // Update away club points
+            ps.setString(1, match.getClubPlayingAway().getId());
+            ps.setString(2, match.getId());
+            ps.setInt(3, awayPoints);
+            ps.executeUpdate();
+        }
+    }
+
+    private Match getMatchWithScorers(Connection con, String matchId) throws SQLException {
+        String sql = """
+            WITH match_goals AS (
+                SELECT 
+                    g."matchId",
+                    g."clubId",
+                    g."playerId",
+                    g."minuteOfGoal",
+                    g."isOwnGoal",
+                    p.name as player_name,
+                    p.number as player_number,
+                    COUNT(*) OVER (PARTITION BY g."matchId", g."clubId") as club_score
+                FROM "Goal" g
+                JOIN "Player" p ON p.id = g."playerId"
+                WHERE g."matchId" = ?
+            )
+            SELECT 
+                m.id, m."matchDatetime", m.stadium, m.status,
+                h.id as home_id, h.name as home_name, h.acronym as home_acronym,
+                a.id as away_id, a.name as away_name, a.acronym as away_acronym,
+                hg."playerId" as home_scorer_id, hg.player_name as home_scorer_name,
+                hg.player_number as home_scorer_number, hg."minuteOfGoal" as home_minute,
+                hg."isOwnGoal" as home_own_goal, COALESCE(hg.club_score, 0) as home_score,
+                ag."playerId" as away_scorer_id, ag.player_name as away_scorer_name,
+                ag.player_number as away_scorer_number, ag."minuteOfGoal" as away_minute,
+                ag."isOwnGoal" as away_own_goal, COALESCE(ag.club_score, 0) as away_score
+            FROM "Match" m
+            JOIN "Club" h ON h.id = m."homeClubId"
+            JOIN "Club" a ON a.id = m."awayClubId"
+            LEFT JOIN match_goals hg ON hg."matchId" = m.id AND hg."clubId" = m."homeClubId"
+            LEFT JOIN match_goals ag ON ag."matchId" = m.id AND ag."clubId" = m."awayClubId"
+            WHERE m.id = ?
+            """;
+
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, matchId);
+            ps.setString(2, matchId);
+
+            Map<String, Match> matchMap = new HashMap<>();
+            
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Match match = matchMap.computeIfAbsent(matchId, k -> {
+                        Match m = new Match();
+                        try {
+                            m.setId(matchId);
+                            m.setStadium(rs.getString("stadium"));
+                            m.setMatchDateTime(rs.getObject("matchDatetime", LocalDateTime.class));
+                            m.setActualStatus(MatchStatus.valueOf(rs.getString("status")));
+
+                            MatchClub home = new MatchClub();
+                            home.setId(rs.getString("home_id"));
+                            home.setName(rs.getString("home_name"));
+                            home.setAcronym(rs.getString("home_acronym"));
+                            home.setScore(rs.getInt("home_score"));
+                            home.setScorers(new ArrayList<>());
+                            m.setClubPlayingHome(home);
+
+                            MatchClub away = new MatchClub();
+                            away.setId(rs.getString("away_id"));
+                            away.setName(rs.getString("away_name"));
+                            away.setAcronym(rs.getString("away_acronym"));
+                            away.setScore(rs.getInt("away_score"));
+                            away.setScorers(new ArrayList<>());
+                            m.setClubPlayingAway(away);
+                        } catch (SQLException e) {
+                            throw new RuntimeException(e);
+                        }
+                        return m;
+                    });
+
+                    // Add home scorer if exists
+                    if (rs.getString("home_scorer_id") != null) {
+                        addScorer(match.getClubPlayingHome().getScorers(),
+                                rs.getString("home_scorer_id"),
+                                rs.getString("home_scorer_name"),
+                                rs.getInt("home_scorer_number"),
+                                rs.getInt("home_minute"),
+                                rs.getBoolean("home_own_goal"));
+                    }
+
+                    // Add away scorer if exists
+                    if (rs.getString("away_scorer_id") != null) {
+                        addScorer(match.getClubPlayingAway().getScorers(),
+                                rs.getString("away_scorer_id"),
+                                rs.getString("away_scorer_name"),
+                                rs.getInt("away_scorer_number"),
+                                rs.getInt("away_minute"),
+                                rs.getBoolean("away_own_goal"));
+                    }
+                }
+            }
+
+            return matchMap.get(matchId);
+        }
     }
 
     /**

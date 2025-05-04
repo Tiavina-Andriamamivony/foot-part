@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import org.prog3.foot.models.AddGoal;
 import org.prog3.foot.models.Match;
 import org.prog3.foot.models.MatchStatus;
+import org.prog3.foot.models.UpdateMatchStatus;
 import org.prog3.foot.service.MatchService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -42,8 +43,8 @@ public class MatchController {
      * @return
      */
     @PutMapping("/matches/{id}/status")
-    public ResponseEntity<Match> updateMatchStatus(@PathVariable String id, @RequestBody MatchStatus status) {
-        throw new UnsupportedOperationException("Not supported yet.");
+    public ResponseEntity<Match> updateMatchStatus(@PathVariable String id, @RequestBody UpdateMatchStatus status) {
+    return ResponseEntity.ok(service.updateMatchStatus(id, status.getStatus()));
     }
 
     /**

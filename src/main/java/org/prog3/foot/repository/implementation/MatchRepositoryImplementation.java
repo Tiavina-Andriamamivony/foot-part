@@ -5,7 +5,10 @@ import org.prog3.foot.configuration.DataSource;
 import org.prog3.foot.exception.BadRequestException;
 import org.prog3.foot.exception.NotFoundException;
 import org.prog3.foot.models.*;
+import org.prog3.foot.repository.ClubRepository;
 import org.prog3.foot.repository.MatchRepository;
+import org.prog3.foot.repository.SeasonRepository;
+import org.prog3.foot.service.MatchService;
 import org.springframework.stereotype.Repository;
 
 import java.sql.Connection;
@@ -13,6 +16,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -21,7 +25,61 @@ import java.util.UUID;
 @AllArgsConstructor
 public class MatchRepositoryImplementation implements MatchRepository {
     private final DataSource dataSource;
+    private final ClubRepository clubRepository;
+    private final SeasonRepository seasonRepository;
 
+    public boolean checkSeason(Integer seasonYear) {
+        Season season = seasonRepository.GetSeasons().stream().filter(s -> s.getYear().equals(seasonYear)).findFirst().orElse(null);
+        if(season == null){
+            throw new NotFoundException("Season not found");
+        } else if (!(season.getStatus() == SeasonStatus.STARTED)) {
+            throw new BadRequestException("Season is not started");
+        }
+        return true;
+    }
+
+    private Match createMatch(PreparedStatement ps, Club homeClub, Club awayClub,
+                              LocalDateTime matchDateTime, Integer seasonYear) throws SQLException {
+        String matchId = UUID.randomUUID().toString();
+
+        ps.setString(1, matchId);
+        ps.setString(2, homeClub.getId());
+        ps.setString(3, awayClub.getId());
+        ps.setString(4, homeClub.getStadium());
+        ps.setObject(5, matchDateTime);
+        ps.setInt(6, seasonYear);
+
+        try (ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) {
+                Match match = new Match();
+                match.setId(rs.getString("id"));
+                match.setStadium(rs.getString("stadium"));
+                match.setMatchDateTime(rs.getObject("matchDateTime", LocalDateTime.class));
+                match.setActualStatus(MatchStatus.valueOf(rs.getString("status")));
+
+                // Set home club
+                MatchClub homeMatchClub = new MatchClub();
+                homeMatchClub.setId(rs.getString("home_id"));
+                homeMatchClub.setName(rs.getString("home_name"));
+                homeMatchClub.setAcronym(rs.getString("home_acronym"));
+                homeMatchClub.setScore(0);
+                homeMatchClub.setScorers(new ArrayList<>());
+                match.setClubPlayingHome(homeMatchClub);
+
+                // Set away club
+                MatchClub awayMatchClub = new MatchClub();
+                awayMatchClub.setId(rs.getString("away_id"));
+                awayMatchClub.setName(rs.getString("away_name"));
+                awayMatchClub.setAcronym(rs.getString("away_acronym"));
+                awayMatchClub.setScore(0);
+                awayMatchClub.setScorers(new ArrayList<>());
+                match.setClubPlayingAway(awayMatchClub);
+
+                return match;
+            }
+        }
+        throw new RuntimeException("Failed to create match");
+    }
 
     /**
      * @Description Create all matches for a specific season including all clubs
@@ -30,150 +88,60 @@ public class MatchRepositoryImplementation implements MatchRepository {
      */
     @Override
     public List<Match> matchMaker(Integer seasonYear) {
-        // First, verify season exists and has STARTED status
-        String checkSeasonSql = """
-            SELECT status FROM "Season" WHERE year = ?
-            """;
-        
-        // Check if matches already exist
-        String checkMatchesSql = """
-            SELECT COUNT(*) FROM "Match" m
-            JOIN "Season" s ON s.id = m."seasonId"
-            WHERE s.year = ?
-            """;
+        if (checkSeason(seasonYear)) {
+            List<Club> allClubs = clubRepository.getClubs();
+            int numClubs = allClubs.size();
+            List<Match> matches = new ArrayList<>();
 
-        // Get all clubs
-        String getClubsSql = """
-            SELECT id, name, acronym, stadium FROM "Club"
-            """;
+            // Insert matches SQL
+            String insertMatchSql = """
+    WITH inserted_match AS (
+        INSERT INTO "Match" (id, "homeClubId", "awayClubId", stadium, "matchDatetime", status, "seasonId")
+        VALUES (?, ?, ?, ?, ?, 'NOT_STARTED', (SELECT id FROM "Season" WHERE year = ?))
+        RETURNING *
+    )
+    SELECT 
+        im.id, im."matchDatetime", im.stadium, im.status,
+        h.id as home_id, h.name as home_name, h.acronym as home_acronym,
+        a.id as away_id, a.name as away_name, a.acronym as away_acronym
+    FROM inserted_match im
+    JOIN "Club" h ON im."homeClubId" = h.id
+    JOIN "Club" a ON im."awayClubId" = a.id
+    """;
+            try (Connection con = dataSource.getConnection();
+                 PreparedStatement ps = con.prepareStatement(insertMatchSql)) {
 
-        // Insert match
-        String insertMatchSql = """
-            INSERT INTO "Match" (id, "homeClubId", "awayClubId", stadium, "matchDatetime", "actualStatus", "seasonId")
-            VALUES (?, ?, ?, ?, ?, 'NOT_STARTED'::\"MatchStatus\", (SELECT id FROM "Season" WHERE year = ?))
-            RETURNING id, "homeClubId", "awayClubId", stadium, "matchDatetime", "actualStatus"
-            """;
-
-        List<Match> matches = new ArrayList<>();
-
-        try (Connection con = dataSource.getConnection()) {
-            // Check season status
-            try (PreparedStatement ps = con.prepareStatement(checkSeasonSql)) {
-                ps.setInt(1, seasonYear);
-                ResultSet rs = ps.executeQuery();
-                if (!rs.next()) {
-                    throw new NotFoundException("Season " + seasonYear + " not found");
-                }
-                String status = rs.getString("status");
-                if (!"STARTED".equals(status)) {
-                    throw new BadRequestException("Season must be in STARTED status");
-                }
-            }
-
-            // Check if matches already exist
-            try (PreparedStatement ps = con.prepareStatement(checkMatchesSql)) {
-                ps.setInt(1, seasonYear);
-                ResultSet rs = ps.executeQuery();
-                rs.next();
-                if (rs.getInt(1) > 0) {
-                    throw new RuntimeException("Matches already exist for season " + seasonYear);
-                }
-            }
-
-            // Get all clubs
-            List<Club> clubs = new ArrayList<>();
-            try (PreparedStatement ps = con.prepareStatement(getClubsSql);
-                 ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    Club club = new Club();
-                    club.setId(rs.getString("id"));
-                    club.setName(rs.getString("name"));
-                    club.setAcronym(rs.getString("acronym"));
-                    club.setStadium(rs.getString("stadium"));
-                    clubs.add(club);
-                }
-            }
-
-            // Create matches
-            try (PreparedStatement ps = con.prepareStatement(insertMatchSql)) {
-                LocalDate startDate = LocalDate.of(seasonYear, 8, 1); // Season starts August 1st
+                // Start date from January 1st of the season year at 20:00
+                LocalDateTime startDate = LocalDateTime.of(seasonYear, 1, 1, 20, 0);
                 int matchDay = 0;
 
-                // Generate home and away matches
-                for (int i = 0; i < clubs.size(); i++) {
-                    for (int j = i + 1; j < clubs.size(); j++) {
-                        Club homeClub = clubs.get(i);
-                        Club awayClub = clubs.get(j);
+                // Create matches for each pair of teams
+                for (int i = 0; i < numClubs; i++) {
+                    for (int j = i + 1; j < numClubs; j++) {
+                        // Home match
+                        Match homeMatch = createMatch(ps, allClubs.get(i), allClubs.get(j), 
+                            startDate.plusDays(matchDay), seasonYear);
+                        matches.add(homeMatch);
 
-                        // Create home match
-                        String matchId = UUID.randomUUID().toString();
-                        ps.setString(1, matchId);
-                        ps.setString(2, homeClub.getId());
-                        ps.setString(3, awayClub.getId());
-                        ps.setString(4, homeClub.getStadium());
-                        ps.setObject(5, startDate.plusDays(matchDay));
-                        ps.setInt(6, seasonYear);
+                        // Away match (reverse fixture)
+                        Match awayMatch = createMatch(ps, allClubs.get(j), allClubs.get(i), 
+                            startDate.plusDays(matchDay + numClubs - 1), seasonYear);
+                        matches.add(awayMatch);
 
-                        try (ResultSet rs = ps.executeQuery()) {
-                            if (rs.next()) {
-                                Match match = createMatchFromResultSet(rs, homeClub, awayClub);
-                                matches.add(match);
-                            }
-                        }
-
-                        // Create away match (return match)
-                        matchId = UUID.randomUUID().toString();
-                        ps.setString(1, matchId);
-                        ps.setString(2, awayClub.getId());
-                        ps.setString(3, homeClub.getId());
-                        ps.setString(4, awayClub.getStadium());
-                        ps.setObject(5, startDate.plusDays(matchDay + 1));
-                        ps.setInt(6, seasonYear);
-
-                        try (ResultSet rs = ps.executeQuery()) {
-                            if (rs.next()) {
-                                Match match = createMatchFromResultSet(rs, awayClub, homeClub);
-                                matches.add(match);
-                            }
-                        }
-
-                        matchDay += 2;
+                        matchDay++;
                     }
                 }
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
             }
 
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
+            return matches;
         }
-
-        return matches;
+        throw new RuntimeException("Something went wrong");
     }
 
-    private Match createMatchFromResultSet(ResultSet rs, Club homeClub, Club awayClub) throws SQLException {
-        Match match = new Match();
-        
-        MatchClub home = new MatchClub();
-        home.setId(homeClub.getId());
-        home.setName(homeClub.getName());
-        home.setAcronym(homeClub.getAcronym());
-        home.setScore(0);
-        home.setScorers(new ArrayList<>());
-        match.setClubPlayingHome(home);
 
-        MatchClub away = new MatchClub();
-        away.setId(awayClub.getId());
-        away.setName(awayClub.getName());
-        away.setAcronym(awayClub.getAcronym());
-        away.setScore(0);
-        away.setScorers(new ArrayList<>());
-        match.setClubPlayingAway(away);
 
-        match.setStadium(rs.getString("stadium"));
-        match.setMatchDateTime(rs.getObject("matchDatetime", LocalDate.class));
-        match.setActualStatus(MatchStatus.valueOf(rs.getString("actualStatus")));
-
-        return match;
-    }
 
     /**
      * @Description Create all matches for a specific season including all clubs

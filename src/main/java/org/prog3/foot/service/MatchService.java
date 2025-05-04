@@ -1,10 +1,12 @@
 package org.prog3.foot.service;
 
 import lombok.AllArgsConstructor;
-import org.prog3.foot.models.AddGoal;
-import org.prog3.foot.models.Match;
-import org.prog3.foot.models.MatchStatus;
+import org.prog3.foot.exception.BadRequestException;
+import org.prog3.foot.exception.NotFoundException;
+import org.prog3.foot.models.*;
+import org.prog3.foot.repository.ClubRepository;
 import org.prog3.foot.repository.MatchRepository;
+import org.prog3.foot.repository.SeasonRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -26,4 +28,7 @@ public class MatchService {
     public Match addGoals(String matchId, List<AddGoal> goals) {
        return repository.addGoals(matchId, goals);
     }
+
+
+
 }

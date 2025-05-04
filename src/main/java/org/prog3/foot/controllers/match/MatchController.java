@@ -22,7 +22,7 @@ public class MatchController {
      */
     @PostMapping("/matchMaker/{seasonYear}")
     public ResponseEntity<List<Match>> matchMaker(@PathVariable Integer seasonYear) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return ResponseEntity.ok(service.matchMaker(seasonYear));
     }
 
     /**

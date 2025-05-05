@@ -1,5 +1,6 @@
 package org.prog3.foot.models;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -7,7 +8,8 @@ import java.io.Serializable;
 @Data
 public class AddGoal implements Serializable {
     private String clubId;
-    private String scoreIdentifier;
+    @JsonProperty("scorerIdentifier")
+    private String scorerIdentifier;
     private Integer minuteOfGoal; //TODO: Create the methode which check if the value is between 1 and 90
 
 }

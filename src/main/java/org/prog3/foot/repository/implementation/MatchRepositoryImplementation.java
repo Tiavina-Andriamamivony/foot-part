@@ -544,6 +544,51 @@ public class MatchRepositoryImplementation implements MatchRepository {
      */
     @Override
     public Match addGoals(String matchId, List<AddGoal> goals) {
-        return null;
+        // First check if match exists and is in STARTED status
+        String checkMatchSql = """
+            SELECT status FROM "Match" WHERE id = ?
+            """;
+        
+        try (Connection con = dataSource.getConnection()) {
+            // Check match status
+            try (PreparedStatement ps = con.prepareStatement(checkMatchSql)) {
+                ps.setString(1, matchId);
+                ResultSet rs = ps.executeQuery();
+                if (!rs.next()) {
+                    throw new NotFoundException("Match not found");
+                }
+                MatchStatus status = MatchStatus.valueOf(rs.getString("status"));
+                if (status != MatchStatus.STARTED) {
+                    throw new BadRequestException("Goals can only be added to matches in STARTED status");
+                }
+            }
+
+            // Insert goals
+            String insertGoalSql = """
+                INSERT INTO "Goal" (id, "matchId", "playerId", "clubId", "minuteOfGoal", "isOwnGoal")
+                VALUES (?, ?, ?, ?, ?, false)
+                """;
+
+            try (PreparedStatement ps = con.prepareStatement(insertGoalSql)) {
+                for (AddGoal goal : goals) {
+                    // Validate minute of goal
+                    if (goal.getMinuteOfGoal() < 1 || goal.getMinuteOfGoal() > 90) {
+                        throw new BadRequestException("Minute of goal must be between 1 and 90");
+                    }
+
+                    ps.setString(1, UUID.randomUUID().toString());
+                    ps.setString(2, matchId);
+                    ps.setString(3, goal.getScorerIdentifier());
+                    ps.setString(4, goal.getClubId());
+                    ps.setInt(5, goal.getMinuteOfGoal());
+                    ps.executeUpdate();
+                }
+            }
+
+            // Return updated match with new goals
+            return getMatchWithScorers(con, matchId);
+        } catch (SQLException e) {
+            throw new RuntimeException("Error adding goals to match: " + e.getMessage());
+        }
     }
 }

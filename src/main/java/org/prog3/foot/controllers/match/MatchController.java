@@ -1,11 +1,13 @@
 package org.prog3.foot.controllers.match;
 
 import lombok.AllArgsConstructor;
+import org.prog3.foot.exception.NotFoundException;
 import org.prog3.foot.models.AddGoal;
 import org.prog3.foot.models.Match;
 import org.prog3.foot.models.MatchStatus;
 import org.prog3.foot.models.UpdateMatchStatus;
 import org.prog3.foot.service.MatchService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,7 +25,11 @@ public class MatchController {
      */
     @PostMapping("/matchMaker/{seasonYear}")
     public ResponseEntity<List<Match>> matchMaker(@PathVariable Integer seasonYear) {
+    try{
         return ResponseEntity.ok(service.matchMaker(seasonYear));
+    }catch (NotFoundException e){
+        return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+    }
     }
 
     /**
@@ -33,7 +39,11 @@ public class MatchController {
      */
     @GetMapping("/matches/{seasonYear}")
     public ResponseEntity<List<Match>> getMatches(@PathVariable Integer seasonYear) {
-        return ResponseEntity.ok(service.getMatches(seasonYear));
+        try{
+            return ResponseEntity.ok(service.getMatches(seasonYear));
+        }catch (NotFoundException e){
+            return ResponseEntity.notFound().build();
+        }
     }
 
     /**
@@ -44,7 +54,11 @@ public class MatchController {
      */
     @PutMapping("/matches/{id}/status")
     public ResponseEntity<Match> updateMatchStatus(@PathVariable String id, @RequestBody UpdateMatchStatus status) {
-    return ResponseEntity.ok(service.updateMatchStatus(id, status.getStatus()));
+        try{
+            return ResponseEntity.ok(service.updateMatchStatus(id, status.getStatus()));
+        }catch (NotFoundException e){
+            return ResponseEntity.notFound().build();
+        }
     }
 
     /**
@@ -100,7 +114,11 @@ public class MatchController {
      */
     @PostMapping("/matches/{id}/goals")
     public ResponseEntity<Match> addGoals(@PathVariable String id, @RequestBody List<AddGoal> goal) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        try{
+            return ResponseEntity.ok(service.addGoals(id, goal));
+        }catch(NotFoundException e){
+            return ResponseEntity.notFound().build();
+        }
     }
 
 }

@@ -44,10 +44,12 @@ public class ClubController {
      */
     @PutMapping("/clubs/{id}/players")
     public ResponseEntity<List<Player>> dropPlayer(@PathVariable String id, @RequestBody List<Player> player) {
-        try{
+        try {
             return ResponseEntity.ok(service.dropPlayer(id,player));
-        }catch(NotFoundException e){
+        } catch (NotFoundException e) {
             return ResponseEntity.notFound().build();
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().build();
         }
     }
     @PostMapping("/clubs/{id}/players")

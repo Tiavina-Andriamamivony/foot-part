@@ -39,9 +39,13 @@ public class MatchController {
      */
     @GetMapping("/matches/{seasonYear}")
     public ResponseEntity<List<Match>> getMatches(@PathVariable Integer seasonYear) {
-        try{
-            return ResponseEntity.ok(service.getMatches(seasonYear));
-        }catch (NotFoundException e){
+        try {
+            List<Match> matches = service.getMatches(seasonYear);
+            if (matches.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+            return ResponseEntity.ok(matches);
+        } catch (NotFoundException e) {
             return ResponseEntity.notFound().build();
         }
     }

@@ -335,7 +335,7 @@ public class ClubRepositoryImplementation implements ClubRepository {
     public List<ClubStatistics> getClubStatistics(Integer seasonYear) {
         String sql = """
             WITH CleanSheets AS (
-                SELECT m."homeClubId" as clubId, COUNT(*) as cleanSheets********
+                SELECT m."homeClubId" as clubId, COUNT(*) as cleanSheets
                 FROM "Match" m
                 LEFT JOIN "Goal" g ON g."matchId" = m.id AND g."clubId" = m."awayClubId"
                 WHERE m."seasonId" IN (SELECT id FROM "Season" WHERE year = ?)
@@ -456,44 +456,25 @@ public class ClubRepositoryImplementation implements ClubRepository {
                 nationality = EXCLUDED.nationality,
                 age = EXCLUDED.age,
                 "clubId" = EXCLUDED."clubId"
-            RETURNING id
-            """;
-
-        String transferSql = """
-            INSERT INTO "Transfer" (id, "playerId", "clubId", "transferDate")
-            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
             """;
 
         try (Connection con = dataSource.getConnection()) {
+            // Start transaction
             con.setAutoCommit(false);
-            
-            try {
-                // First, record transfers for players being removed
-                List<String> currentPlayerIds = getPlayersFromASpecificClub(id)
-                    .stream()
-                    .map(Player::getId)
-                    .toList();
-                
-                for (String playerId : currentPlayerIds) {
-                    try (PreparedStatement transferPs = con.prepareStatement(transferSql)) {
-                        transferPs.setString(1, java.util.UUID.randomUUID().toString());
-                        transferPs.setString(2, playerId);
-                        transferPs.setString(3, null); // null clubId means player left the club
-                        transferPs.executeUpdate();
-                    }
-                }
 
-                // Delete current players
+            try {
+                // First, delete all current players
                 try (PreparedStatement deletePs = con.prepareStatement(deleteSql)) {
                     deletePs.setString(1, id);
                     deletePs.executeUpdate();
                 }
 
-                // Insert new players and record transfers
+                // Then, insert new players
                 try (PreparedStatement insertPs = con.prepareStatement(insertSql)) {
                     for (Player player : newPlayers) {
                         String playerId = player.getId() != null ? player.getId() : java.util.UUID.randomUUID().toString();
-                        
+
+                        // Insert player
                         insertPs.setString(1, playerId);
                         insertPs.setString(2, player.getName());
                         insertPs.setInt(3, player.getNumber());
@@ -501,28 +482,24 @@ public class ClubRepositoryImplementation implements ClubRepository {
                         insertPs.setString(5, player.getNationality());
                         insertPs.setInt(6, player.getAge());
                         insertPs.setString(7, id);
-                        
-                        try (ResultSet rs = insertPs.executeQuery()) {
-                            if (rs.next()) {
-                                // Record the transfer
-                                try (PreparedStatement transferPs = con.prepareStatement(transferSql)) {
-                                    transferPs.setString(1, java.util.UUID.randomUUID().toString());
-                                    transferPs.setString(2, playerId);
-                                    transferPs.setString(3, id);
-                                    transferPs.executeUpdate();
-                                }
-                            }
-                        }
+
+                        insertPs.addBatch();
                     }
+                    insertPs.executeBatch();
                 }
 
+                // Commit transaction
                 con.commit();
+
+                // Return updated list of players
                 return getPlayersFromASpecificClub(id);
 
             } catch (SQLException e) {
+                // Rollback in case of error
                 con.rollback();
                 throw e;
             } finally {
+                // Reset auto-commit
                 con.setAutoCommit(true);
             }
 

@@ -56,10 +56,12 @@ public class ClubController {
     }
     @PostMapping("/clubs/{id}/players")
     public ResponseEntity<List<Player>> addPlayer(@PathVariable String id, @RequestBody List<Player> player) {
-        try{
-            return ResponseEntity.ok(service.addPlayer(id,player ));
-        }catch(NotFoundException e){
+        try {
+            return ResponseEntity.ok(service.addPlayer(id,player));
+        } catch (NotFoundException e) {
             return ResponseEntity.notFound().build();
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().build();
         }
     }
     @GetMapping("/clubs/statistics/{seasonYear}")

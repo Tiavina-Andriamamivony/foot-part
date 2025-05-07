@@ -17,11 +17,13 @@ import java.util.List;
 public class ClubController {
     private final ClubService service;
 
+    //Get clubs of the championship
     @GetMapping("/clubs")
     public ResponseEntity<List<Club>> getClubs() {
         return ResponseEntity.ok(service.getClubs());
     }
 
+    //Create new clubs or update if already exist
     @PutMapping("/clubs")
     public ResponseEntity<List<Club>> upCreateClub(@RequestBody List<Club> clubs) {
         return ResponseEntity.ok(service.upCreateClub(clubs));

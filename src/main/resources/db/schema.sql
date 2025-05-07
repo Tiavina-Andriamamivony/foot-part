@@ -68,6 +68,25 @@ CREATE TABLE "Goal" (
                         CONSTRAINT "Goal_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "Transfer" (
+    "id" TEXT NOT NULL,
+    "playerId" TEXT NOT NULL,
+    "clubId" TEXT,
+    "transferDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Transfer_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE INDEX "Transfer_playerId_idx" ON "Transfer"("playerId");
+CREATE INDEX "Transfer_clubId_idx" ON "Transfer"("clubId");
+CREATE INDEX "Transfer_transferDate_idx" ON "Transfer"("transferDate");
+
+-- AddForeignKey
+ALTER TABLE "Transfer" ADD CONSTRAINT "Transfer_playerId_fkey" FOREIGN KEY ("playerId") REFERENCES "Player"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Transfer" ADD CONSTRAINT "Transfer_clubId_fkey" FOREIGN KEY ("clubId") REFERENCES "Club"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Club_name_key" ON "Club"("name");
 

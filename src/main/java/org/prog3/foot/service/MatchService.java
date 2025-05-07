@@ -9,6 +9,7 @@ import org.prog3.foot.repository.MatchRepository;
 import org.prog3.foot.repository.SeasonRepository;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -18,8 +19,40 @@ public class MatchService {
     public List<Match> matchMaker(Integer seasonYear) {
        return repository.matchMaker(seasonYear);
     }
-    public List<Match> getMatches(Integer seasonYear) {
-       return repository.getMatches(seasonYear);
+    public List<Match> getMatches(Integer seasonYear, MatchStatus matchStatus, 
+                                 String clubPlayingName, LocalDate matchAfter, 
+                                 LocalDate matchBeforeOrEquals) {
+        List<Match> matches = repository.getMatches(seasonYear);
+        
+        // Apply filters if provided
+        if (matchStatus != null) {
+            matches = matches.stream()
+                .filter(match -> match.getActualStatus() == matchStatus)
+                .toList();
+        }
+        
+        if (clubPlayingName != null && !clubPlayingName.isEmpty()) {
+            matches = matches.stream()
+                .filter(match -> 
+                    match.getClubPlayingHome().getName().toLowerCase().contains(clubPlayingName.toLowerCase()) ||
+                    match.getClubPlayingAway().getName().toLowerCase().contains(clubPlayingName.toLowerCase()))
+                .toList();
+        }
+        
+        if (matchAfter != null) {
+            matches = matches.stream()
+                .filter(match -> match.getMatchDateTime().toLocalDate().isAfter(matchAfter))
+                .toList();
+        }
+        
+        if (matchBeforeOrEquals != null) {
+            matches = matches.stream()
+                .filter(match -> match.getMatchDateTime().toLocalDate().isBefore(matchBeforeOrEquals) ||
+                               match.getMatchDateTime().toLocalDate().isEqual(matchBeforeOrEquals))
+                .toList();
+        }
+        
+        return matches;
     }
 
     public Match updateMatchStatus(String id, MatchStatus status) {

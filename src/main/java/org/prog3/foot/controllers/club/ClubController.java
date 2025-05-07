@@ -5,6 +5,7 @@ import org.prog3.foot.exception.NotFoundException;
 import org.prog3.foot.models.Club;
 import org.prog3.foot.models.ClubStatistics;
 import org.prog3.foot.models.Player;
+import org.prog3.foot.models.Tansfert;
 import org.prog3.foot.service.ClubService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -47,7 +48,7 @@ public class ClubController {
     @PutMapping("/clubs/{id}/players")
     public ResponseEntity<List<Player>> dropPlayer(@PathVariable String id, @RequestBody List<Player> player) {
         try {
-            return ResponseEntity.ok(service.dropPlayer(id,player));
+            return ResponseEntity.ok(service.ReplaceAll(id,player));
         } catch (NotFoundException e) {
             return ResponseEntity.notFound().build();
         } catch (RuntimeException e) {
@@ -71,5 +72,10 @@ public class ClubController {
         }catch(NotFoundException e){
             return ResponseEntity.notFound().build();
         }
+    }
+
+    @GetMapping("/transfert")
+    public ResponseEntity<List<Tansfert>> transfert(){
+        return ResponseEntity.ok(service.getTransfer());
     }
 }

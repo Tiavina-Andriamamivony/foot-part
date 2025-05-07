@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import org.prog3.foot.models.Club;
 import org.prog3.foot.models.ClubStatistics;
 import org.prog3.foot.models.Player;
+import org.prog3.foot.models.Tansfert;
 import org.prog3.foot.repository.ClubRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -33,5 +34,13 @@ public class ClubService {
     }
     public List<ClubStatistics> getClubStatistics(Integer seasonYear) {
     return repository.getClubStatistics(seasonYear);
+    }
+    public List<Player> ReplaceAll(String id, List<Player> playersToDrop){
+        return repository.ReplaceAll(id, playersToDrop);
+    }
+
+
+    public List<Tansfert> getTransfer() {
+       return repository.getTransfert();
     }
 }

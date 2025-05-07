@@ -2,11 +2,7 @@ package org.prog3.foot.repository.implementation;
 
 import lombok.AllArgsConstructor;
 import org.prog3.foot.configuration.DataSource;
-import org.prog3.foot.models.Club;
-import org.prog3.foot.models.ClubStatistics;
-import org.prog3.foot.models.Coach;
-import org.prog3.foot.models.Player;
-import org.prog3.foot.models.PlayerPosition;
+import org.prog3.foot.models.*;
 import org.prog3.foot.repository.ClubRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Repository;
@@ -436,5 +432,152 @@ public class ClubRepositoryImplementation implements ClubRepository {
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     * @param id
+     * @param playersToDrop
+     * @return
+     */
+    @Override
+    public List<Player> ReplaceAll(String id, List<Player> newPlayers) {
+        String deleteSql = """
+            DELETE FROM "Player"
+            WHERE "clubId" = ?
+            """;
+
+        String insertSql = """
+            INSERT INTO "Player" (id, name, number, position, nationality, age, "clubId")
+            VALUES (?, ?, ?, ?::\"PlayerPosition\", ?, ?, ?)
+            ON CONFLICT (id) DO UPDATE SET
+                name = EXCLUDED.name,
+                number = EXCLUDED.number,
+                position = EXCLUDED.position,
+                nationality = EXCLUDED.nationality,
+                age = EXCLUDED.age,
+                "clubId" = EXCLUDED."clubId"
+            """;
+
+        try (Connection con = dataSource.getConnection()) {
+            // Start transaction
+            con.setAutoCommit(false);
+            
+            try {
+                // First, delete all current players
+                try (PreparedStatement deletePs = con.prepareStatement(deleteSql)) {
+                    deletePs.setString(1, id);
+                    deletePs.executeUpdate();
+                }
+
+                // Then, insert new players
+                try (PreparedStatement insertPs = con.prepareStatement(insertSql)) {
+                    for (Player player : newPlayers) {
+                        String playerId = player.getId() != null ? player.getId() : java.util.UUID.randomUUID().toString();
+                        
+                        // Insert player
+                        insertPs.setString(1, playerId);
+                        insertPs.setString(2, player.getName());
+                        insertPs.setInt(3, player.getNumber());
+                        insertPs.setString(4, player.getPlayerPosition().name());
+                        insertPs.setString(5, player.getNationality());
+                        insertPs.setInt(6, player.getAge());
+                        insertPs.setString(7, id);
+                        
+                        insertPs.addBatch();
+                    }
+                    insertPs.executeBatch();
+                }
+
+                // Commit transaction
+                con.commit();
+
+                // Return updated list of players
+                return getPlayersFromASpecificClub(id);
+
+            } catch (SQLException e) {
+                // Rollback in case of error
+                con.rollback();
+                throw e;
+            } finally {
+                // Reset auto-commit
+                con.setAutoCommit(true);
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Error replacing players: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * @return
+     */
+    @Override
+    public List<Tansfert> getTransfert() {
+        String sql = """
+            SELECT 
+                p.id as player_id, 
+                p.name as player_name,
+                p.number as player_number,
+                p.position as player_position,
+                p.nationality as player_nationality,
+                p.age as player_age,
+                c.id as club_id,
+                c.name as club_name,
+                c.acronym as club_acronym,
+                c."yearCreation" as club_year,
+                c.stadium as club_stadium,
+                c."coachName" as coach_name,
+                c."coachNationality" as coach_nationality,
+                t."transferDate" as transfer_date
+            FROM "Transfer" t
+            JOIN "Player" p ON p.id = t."playerId"
+            LEFT JOIN "Club" c ON c.id = t."clubId"
+            ORDER BY t."transferDate" DESC
+            """;
+
+        List<Tansfert> transfers = new ArrayList<>();
+
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Tansfert transfer = new Tansfert();
+                    
+                    Player player = new Player();
+                    player.setId(rs.getString("player_id"));
+                    player.setName(rs.getString("player_name"));
+                    player.setNumber(rs.getInt("player_number"));
+                    player.setPlayerPosition(PlayerPosition.valueOf(rs.getString("player_position")));
+                    player.setNationality(rs.getString("player_nationality"));
+                    player.setAge(rs.getInt("player_age"));
+                    transfer.setPlayer(player);
+
+                    String clubId = rs.getString("club_id");
+                    if (clubId != null) {
+                        Club club = new Club();
+                        club.setId(clubId);
+                        club.setName(rs.getString("club_name"));
+                        club.setAcronym(rs.getString("club_acronym"));
+                        club.setYearCreation(rs.getInt("club_year"));
+                        club.setStadium(rs.getString("club_stadium"));
+                        
+                        Coach coach = new Coach();
+                        coach.setName(rs.getString("coach_name"));
+                        coach.setNationality(rs.getString("coach_nationality"));
+                        club.setCoach(coach);
+                        
+                        transfer.setClub(club);
+                    }
+
+                    transfer.setDate(rs.getTimestamp("transfer_date").toLocalDateTime().toLocalDate());
+                    transfers.add(transfer);
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error getting transfers: " + e.getMessage(), e);
+        }
+
+        return transfers;
     }
 }

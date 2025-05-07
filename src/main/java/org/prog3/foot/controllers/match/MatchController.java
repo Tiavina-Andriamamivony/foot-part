@@ -7,10 +7,12 @@ import org.prog3.foot.models.Match;
 import org.prog3.foot.models.MatchStatus;
 import org.prog3.foot.models.UpdateMatchStatus;
 import org.prog3.foot.service.MatchService;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -38,9 +40,15 @@ public class MatchController {
      * @return the list of all matches this season
      */
     @GetMapping("/matches/{seasonYear}")
-    public ResponseEntity<List<Match>> getMatches(@PathVariable Integer seasonYear) {
+    public ResponseEntity<List<Match>> getMatches(
+            @PathVariable Integer seasonYear,
+            @RequestParam(required = false) MatchStatus matchStatus,
+            @RequestParam(required = false) String clubPlayingName,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate matchAfter,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate matchBeforeOrEquals) {
         try {
-            List<Match> matches = service.getMatches(seasonYear);
+            List<Match> matches = service.getMatches(seasonYear, matchStatus, clubPlayingName, 
+                                                   matchAfter, matchBeforeOrEquals);
             if (matches.isEmpty()) {
                 return ResponseEntity.notFound().build();
             }

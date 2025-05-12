@@ -1,3 +1,4 @@
+
 -- CreateEnum
 CREATE TYPE "PlayerPosition" AS ENUM ('STRIKER', 'MIDFIELDER', 'DEFENSE', 'GOAL_KEEPER');
 

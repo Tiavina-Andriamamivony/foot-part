@@ -4,7 +4,6 @@ import lombok.AllArgsConstructor;
 import org.prog3.foot.configuration.DataSource;
 import org.prog3.foot.models.*;
 import org.prog3.foot.repository.ClubRepository;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Repository;
 
 import java.sql.Connection;
